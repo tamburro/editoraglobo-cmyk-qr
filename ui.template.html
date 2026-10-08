@@ -1,0 +1,1222 @@
+<!-- ui.template.html — fonte da UI.
+     Rode `node build.js` para gerar ui.html com as libs embutidas
+     (o Figma exige um único arquivo HTML). -->
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #fff);
+    --bg-secondary: var(--figma-color-bg-secondary, #f5f5f5);
+    --border: var(--figma-color-border, #e6e6e6);
+    --text: var(--figma-color-text, #000);
+    --text-secondary: var(--figma-color-text-secondary, #666);
+    --brand: var(--figma-color-bg-brand, #0d99ff);
+    --brand-text: var(--figma-color-text-onbrand, #fff);
+    --danger: var(--figma-color-text-danger, #d92d20);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 12px 14px 76px;
+    font: 11px/1.45 Inter, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text); background: var(--bg);
+  }
+  h2 { font-size: 11px; font-weight: 600; margin: 16px 0 6px; letter-spacing: .02em; }
+  h2:first-child { margin-top: 0; }
+  label { display: block; color: var(--text-secondary); margin-bottom: 3px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+  select, input[type=text], input[type=number] {
+    width: 100%; height: 28px; padding: 0 7px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg); color: var(--text); font: inherit;
+  }
+  input[type=range] { width: 100%; }
+  button {
+    height: 28px; border: 0; border-radius: 6px; padding: 0 10px;
+    background: var(--brand); color: var(--brand-text);
+    font: 600 11px/1 Inter, sans-serif; cursor: pointer;
+  }
+  button.ghost {
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  button:disabled { opacity: .45; cursor: default; }
+  .field { margin-bottom: 8px; }
+  .hint { color: var(--text-secondary); font-size: 10px; margin-top: 4px; }
+  .hint.warn { color: var(--figma-color-text-warning, #b25e09); }
+  .hint.bad { color: var(--danger); }
+  .card {
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-secondary); padding: 8px; margin-bottom: 8px;
+  }
+  #nodes { max-height: 190px; overflow: auto; }
+  .node { display: flex; align-items: center; gap: 8px; padding: 4px 2px; }
+  .node .thumb {
+    width: 36px; height: 36px; flex: none; border-radius: 3px;
+    border: 1px solid var(--border); overflow: hidden;
+    background-image:
+      linear-gradient(45deg, #8884 25%, #0000 25% 50%, #8884 50% 75%, #0000 75%);
+    background-size: 8px 8px;
+  }
+  .node .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .node .body { min-width: 0; flex: 1; }
+  .node .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node .sub { color: var(--text-secondary); font-size: 10px; }
+  .empty { color: var(--text-secondary); padding: 6px 2px; }
+  .swatch {
+    width: 44px; height: 44px; flex: none; border-radius: 4px;
+    border: 1px solid var(--border); background: #fff;
+  }
+  .inks-grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 8px;
+  }
+  .ink {
+    height: 30px; border-radius: 4px; border: 1px solid var(--border);
+    padding: 0; cursor: pointer; position: relative;
+  }
+  .ink[disabled] { cursor: default; opacity: .4; }
+  .ink.on { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .current {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    color: var(--text-secondary);
+  }
+  .current .chip {
+    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border); flex: none;
+  }
+  .ink-total { margin-left: auto; white-space: nowrap; }
+  .inks { display: flex; gap: 6px; flex: 1; }
+  .inks > div { flex: 1; }
+  .inks label { text-align: center; font-size: 10px; }
+  .inks input { text-align: center; padding: 0 2px; }
+  .actions { display: flex; gap: 6px; margin-top: 8px; }
+  .actions button { flex: 1; }
+  .footer {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 10px 14px; background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+  .footer button { width: 100%; height: 32px; }
+  #status { margin-bottom: 6px; min-height: 14px; color: var(--text-secondary); }
+  #status.error { color: var(--danger); }
+  .bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--brand); transition: width .12s linear; }
+  .toggle { display: flex; align-items: center; gap: 6px; color: var(--text); }
+  .preset-ok li { color: var(--text-secondary); }
+  .preset-list { margin: 4px 0 0; padding-left: 14px; }
+  .preset-list li { margin: 1px 0; }
+  .warn { color: var(--figma-color-text-warning, #b25e09); }
+  .tag {
+    display: inline-block; padding: 0 4px; border-radius: 3px; font-size: 9px;
+    background: var(--brand); color: var(--brand-text); margin-left: 4px;
+  }
+</style>
+
+<h2>Camadas selecionadas</h2>
+<div class="card" id="nodes"><div class="empty">Selecione algo no canvas.</div></div>
+
+<h2>Resolução</h2>
+<div class="row field">
+  <div>
+    <label>DPI</label>
+    <select id="dpi">
+      <option value="150">150</option>
+      <option value="300" selected>300 (impressão)</option>
+      <option value="600">600</option>
+      <option value="72">72 (1:1)</option>
+    </select>
+  </div>
+  <div>
+    <label>Tamanho</label>
+    <select id="sizeMode">
+      <option value="physical" selected>Manter tamanho físico</option>
+      <option value="native">Pixels do Figma (1:1)</option>
+      <option value="width">Largura fixa (px)</option>
+    </select>
+  </div>
+</div>
+<div class="field" id="customWidthField" style="display:none">
+  <label>Largura em pixels</label>
+  <input type="number" id="customWidth" min="1" max="30000" value="5000">
+</div>
+<div class="hint" id="sizeHint">—</div>
+
+<h2>Conversão para CMYK</h2>
+<div class="field">
+  <label>Perfil de separação (vira tinta)</label>
+  <input type="file" id="iccFile" accept=".icc,.icm">
+  <div class="hint" id="iccHint">
+    Sem perfil, é usada a fórmula abaixo (não é color-managed). É este perfil que
+    decide quanta tinta cada pixel recebe.
+  </div>
+</div>
+<div class="field">
+  <label>Perfil do OutputIntent (só PDF/X)</label>
+  <input type="file" id="oiFile" accept=".icc,.icm">
+  <div class="hint" id="oiHint"></div>
+</div>
+<div class="field">
+  <label>Intenção de renderização</label>
+  <select id="intent">
+    <option value="0" selected>Perceptual (B2A0)</option>
+    <option value="1">Colorimétrica relativa (B2A1)</option>
+    <option value="2">Saturação (B2A2)</option>
+  </select>
+</div>
+<div id="fallbackOpts">
+  <div class="field">
+    <label>Geração de preto (GCR): <span id="gcrVal">100%</span></label>
+    <input type="range" id="gcr" min="0" max="100" value="100">
+  </div>
+  <div class="field">
+    <label>Limite de tinta total: <span id="inkVal">300%</span></label>
+    <input type="range" id="ink" min="200" max="400" value="300">
+  </div>
+</div>
+
+<h2>Cor do objeto</h2>
+<div class="card">
+  <div class="current">
+    <span class="chip" id="currentChip"></span>
+    <span id="currentLabel">Clique num objeto da arte.</span>
+    <span class="ink-total" id="inkTotal"></span>
+  </div>
+  <div class="inks-grid" id="inkGrid"></div>
+  <div style="display:flex; gap:8px; align-items:flex-end">
+    <div class="swatch" id="cmykSwatch"></div>
+    <div class="inks">
+      <div><label>C</label><input type="number" id="inkC" min="0" max="100" value="0"></div>
+      <div><label>M</label><input type="number" id="inkM" min="0" max="100" value="0"></div>
+      <div><label>Y</label><input type="number" id="inkY" min="0" max="100" value="0"></div>
+      <div><label>K</label><input type="number" id="inkK" min="0" max="100" value="100"></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="applyCmyk" disabled>Aplicar</button>
+    <button id="clearCmyk" class="ghost" disabled>Soltar a cor</button>
+  </div>
+  <div class="hint" id="cmykHint">
+    A cor aplicada entra no arquivo com esta tinta exata, sem passar pela
+    conversão. Na tela, o objeto mostra como ela sai impressa.
+  </div>
+</div>
+
+<h2>QR code</h2>
+<div class="card">
+  <div class="field">
+    <label>Link</label>
+    <input type="text" id="qrText" placeholder="https://clubeoglobo.com.br" spellcheck="false">
+  </div>
+  <div class="row field">
+    <div>
+      <label>Correção de erro</label>
+      <select id="qrLevel">
+        <option value="L">L — 7%</option>
+        <option value="M" selected>M — 15%</option>
+        <option value="Q">Q — 25%</option>
+        <option value="H">H — 30%</option>
+      </select>
+    </div>
+    <div>
+      <label>Tamanho impresso (mm)</label>
+      <input type="number" id="qrSize" min="5" max="200" step="1" value="25">
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:flex-start">
+    <div id="qrPreview" style="width:96px;height:96px;flex:none"></div>
+    <div class="hint" id="qrHint" style="margin-top:0">Digite o link.</div>
+  </div>
+  <div class="actions">
+    <button id="qrInsert" disabled>Inserir QR code</button>
+  </div>
+</div>
+
+<h2>Arquivo</h2>
+<div class="field">
+  <label>Formato</label>
+  <select id="format">
+    <option value="tiff" selected>TIFF CMYK</option>
+    <option value="pdfx">PDF/X-1a:2001 (preset Editora Globo)</option>
+  </select>
+  <div class="hint" id="formatHint"></div>
+</div>
+<div class="row field">
+  <div>
+    <label>Compressão</label>
+    <select id="compression">
+      <option value="deflate" selected>Deflate (zip)</option>
+      <option value="none">Nenhuma</option>
+      <option value="packbits">PackBits</option>
+    </select>
+  </div>
+  <div>
+    <label>Fundo (transparência)</label>
+    <select id="bg">
+      <option value="ffffff" selected>Branco</option>
+      <option value="000000">Preto</option>
+    </select>
+  </div>
+</div>
+<div class="field">
+  <label class="toggle"><input type="checkbox" id="embedIcc" checked> Embutir o perfil ICC no arquivo</label>
+</div>
+
+<div class="footer">
+  <div id="status">Pronto.</div>
+  <div class="bar"><i id="progress"></i></div>
+  <button id="go" disabled>Converter e baixar</button>
+</div>
+
+<!--@include lib/preset.js-->
+<!--@include lib/qr.js-->
+<!--@include-optional lib/profile-embedded.js-->
+<!--@include lib/color.js-->
+<!--@include lib/icc.js-->
+<!--@include lib/tiff.js-->
+<!--@include lib/pdfx.js-->
+
+<script>
+(function () {
+  'use strict';
+  var Color = CMYKLIB.Color, ICC = CMYKLIB.ICC, Tiff = CMYKLIB.Tiff, PdfX = CMYKLIB.PdfX;
+  var Presets = CMYKLIB.Presets, Embedded = CMYKLIB.EmbeddedProfiles || null;
+  var QR = CMYKLIB.QR;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // O canvas do Chrome não passa de 16384 px por lado, e cada megapixel custa
+  // 8 bytes aqui (RGBA da leitura + CMYK da saída). Acima disso o browser
+  // devolve um canvas vazio em silêncio — que era o TIFF todo branco.
+  var MAX_DIM = 16384;
+  var MAX_PIXELS = 100 * 1000 * 1000;
+  var WARN_PIXELS = 40 * 1000 * 1000;
+
+  var state = {
+    nodes: [],
+    selected: {},
+    thumbs: {},
+    iccBytes: null,                                 // perfil de separação
+    iccProfile: null,
+    oiBytes: null,                                  // perfil declarado no OutputIntent
+    oiProfile: null,
+    converter: null,
+    converterKey: '',
+    cmykToRgb: null,
+    inks: [],                                       // paleta com a cor já simulada
+    profileSource: null,                            // 'embutido' | 'salvo' | 'arquivo'
+    limitError: null,
+    busy: false
+  };
+
+  // -------------------------------------------------------------- comunicação
+
+  parent.postMessage({ pluginMessage: { type: 'ready' } }, '*');
+
+  window.onmessage = function (event) {
+    var msg = event.data.pluginMessage;
+    if (!msg) return;
+    if (msg.type === 'selection') { state.nodes = msg.nodes; renderNodes(); }
+    else if (msg.type === 'thumb') showThumb(msg);
+    else if (msg.type === 'progress') setStatus('Exportando "' + msg.name + '" em ' + msg.pixels + '…');
+    else if (msg.type === 'image') handleImage(msg);
+    else if (msg.type === 'export-done') finish();
+    else if (msg.type === 'storedProfile') useStoredProfile(msg);
+    else if (msg.type === 'profileNotSaved') {
+      $('iccHint').innerHTML += ' <span class="warn">(não deu para guardar para a próxima sessão)</span>';
+    }
+    else if (msg.type === 'error') fail(msg.message);
+  };
+
+  function post(payload) { parent.postMessage({ pluginMessage: payload }, '*'); }
+  function notify(message, isError) { post({ type: 'notify', message: message, error: !!isError }); }
+
+  // ----------------------------------------------------------- lista e thumbs
+
+  function renderNodes() {
+    var box = $('nodes');
+    box.innerHTML = '';
+    var usable = state.nodes.filter(function (n) { return n.exportable; });
+
+    if (!usable.length) {
+      box.innerHTML = '<div class="empty">Selecione um frame, grupo ou imagem no canvas.</div>';
+      updateSizeHint();
+      syncButtons();
+      syncColorFromSelection();
+      return;
+    }
+
+    usable.forEach(function (n) {
+      if (state.selected[n.id] === undefined) state.selected[n.id] = true;
+
+      var row = document.createElement('label');
+      row.className = 'node';
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!state.selected[n.id];
+      cb.onchange = function () { state.selected[n.id] = cb.checked; updateSizeHint(); syncButtons(); };
+
+      var thumb = document.createElement('span');
+      thumb.className = 'thumb';
+      thumb.id = 'thumb-' + n.id;
+      if (state.thumbs[n.id]) thumb.appendChild(makeThumbImg(state.thumbs[n.id]));
+
+      var body = document.createElement('span');
+      body.className = 'body';
+      var name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = n.name;
+      if (n.exactCmyk) {
+        var tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = n.exactCmyk.map(function (v) { return Math.round(v * 100); }).join('/');
+        name.appendChild(tag);
+      }
+      var sub = document.createElement('div');
+      sub.className = 'sub';
+      sub.textContent = Math.round(n.width) + '×' + Math.round(n.height) + ' · ' + n.type.toLowerCase();
+
+      body.appendChild(name); body.appendChild(sub);
+      row.appendChild(cb); row.appendChild(thumb); row.appendChild(body);
+      box.appendChild(row);
+    });
+
+    updateSizeHint();
+    syncButtons();
+    syncColorFromSelection();
+  }
+
+  function makeThumbImg(url) {
+    var img = document.createElement('img');
+    img.src = url;
+    return img;
+  }
+
+  function showThumb(msg) {
+    var url = URL.createObjectURL(new Blob([msg.bytes], { type: 'image/png' }));
+    if (state.thumbs[msg.id]) URL.revokeObjectURL(state.thumbs[msg.id]);
+    state.thumbs[msg.id] = url;
+    var slot = $('thumb-' + msg.id);
+    if (slot) { slot.innerHTML = ''; slot.appendChild(makeThumbImg(url)); }
+  }
+
+  function chosen() {
+    return state.nodes.filter(function (n) { return n.exportable && state.selected[n.id]; });
+  }
+
+  function syncButtons() {
+    $('go').disabled = state.busy || !chosen().length || !!state.limitError;
+    var fillable = state.nodes.filter(function (n) { return n.fillable; });
+    $('applyCmyk').disabled = state.busy || !fillable.length;
+    $('clearCmyk').disabled = state.busy || !state.nodes.some(function (n) { return n.exactCmyk; });
+  }
+
+  // --------------------------------------------------------------- dimensões
+
+  function dpi() { return parseInt($('dpi').value, 10) || 300; }
+
+  function targetWidthFor(node) {
+    var mode = $('sizeMode').value;
+    if (mode === 'width') return Math.max(1, parseInt($('customWidth').value, 10) || 1);
+    if (mode === 'native') return Math.round(node.width);   // só marca o DPI, sem reamostrar
+    return Math.round(node.width * dpi() / 72);
+  }
+
+  /** Devolve a mensagem do problema, ou null se as dimensões couberem. */
+  function limitProblem(w, h) {
+    if (w > MAX_DIM || h > MAX_DIM) {
+      return w + '×' + h + ' px passa do limite de ' + MAX_DIM +
+        ' px por lado do browser. Baixe o DPI, use "Pixels do Figma (1:1)" ou fixe a largura.';
+    }
+    if (w * h > MAX_PIXELS) {
+      return w + '×' + h + ' px são ' + Math.round(w * h / 1e6) +
+        ' MP, acima do teto de ' + (MAX_PIXELS / 1e6) + ' MP que cabe na memória do plugin.';
+    }
+    return null;
+  }
+
+  function updateSizeHint() {
+    var el = $('sizeHint');
+    state.limitError = null;
+    var list = chosen();
+    if (!list.length) { el.textContent = '—'; el.className = 'hint'; return; }
+
+    var worst = null;
+    list.forEach(function (n) {
+      var w = targetWidthFor(n);
+      var h = Math.round(w * n.height / n.width);
+      var problem = limitProblem(w, h);
+      if (problem && !state.limitError) state.limitError = '"' + n.name + '": ' + problem;
+      if (!worst || w * h > worst.w * worst.h) worst = { n: n, w: w, h: h };
+    });
+
+    if (state.limitError) {
+      el.textContent = state.limitError;
+      el.className = 'hint bad';
+      return;
+    }
+
+    var w = worst.w, h = worst.h;
+    var mb = (w * h * 4) / 1048576;
+    var mmW = (w / dpi() * 25.4).toFixed(1);
+    var mmH = (h / dpi() * 25.4).toFixed(1);
+    el.textContent = (list.length > 1 ? list.length + ' camadas · maior: ' : '') +
+      w + '×' + h + ' px · ' + mmW + '×' + mmH + ' mm a ' + dpi() + ' DPI · até ~' + mb.toFixed(1) + ' MB';
+    el.className = w * h > WARN_PIXELS ? 'hint warn' : 'hint';
+  }
+
+  ['dpi', 'sizeMode', 'customWidth'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      $('customWidthField').style.display = $('sizeMode').value === 'width' ? '' : 'none';
+      updateSizeHint();
+      renderPresetStatus();
+      syncButtons();
+    });
+  });
+
+  // ------------------------------------------------------------------ preset
+
+  var PRESET = Presets.active;
+
+  /**
+   * O fechamento da editora é o único padrão: aplicado ao abrir, sem seletor.
+   * As opções abaixo continuam editáveis para uma exceção pontual, e o painel
+   * avisa quando alguma delas sai do padrão.
+   */
+  function applyPreset() {
+    // Se os perfis que o preset pede vieram embutidos, entram sozinhos — é o
+    // que faz o fechamento virar um clique só.
+    if (Embedded) {
+      adopt(PRESET.profiles.separation, 'separation', state.iccProfile);
+      adopt(PRESET.profiles.outputIntent, 'outputIntent', state.oiProfile);
+    }
+
+    var s = PRESET.settings;
+    $('format').value = s.format;
+    $('dpi').value = String(s.dpi);
+    $('intent').value = String(s.intent);
+    $('bg').value = s.bg;
+    $('embedIcc').checked = s.embedIcc;
+    updateFormatHint();
+    invalidateConverter();
+    updateSizeHint();
+    renderPresetStatus();
+    syncButtons();
+
+    function adopt(name, role, atual) {
+      if (!name) return;
+      var wanted = Embedded.find(name);
+      if (!wanted || (atual && atual.description === wanted.name)) return;
+      try {
+        useProfile(wanted.bytes(), wanted.name, 'embutido', role);
+      } catch (err) {
+        rejectProfile(err.message, role);
+      }
+    }
+  }
+
+  /** Só aparece quando alguma coisa foge do padrão da casa. */
+  function renderPresetStatus() {
+    var el = $('formatHint');
+    var check = Presets.validate(PRESET, presetState());
+    var html = $('format').value === 'pdfx'
+      ? 'Fechamento <b>' + escapeHtml(PRESET.label) + '</b>: ' +
+        escapeHtml(PRESET.summary.join(' · '))
+      : 'TIFF CMYK com o DPI gravado e o perfil de separação embutido.';
+
+    check.problems.forEach(function (line) {
+      html += '<div class="bad">Falta: ' + escapeHtml(line) + '</div>';
+    });
+    check.warnings.forEach(function (line) {
+      html += '<div class="warn">Fora do padrão: ' + escapeHtml(line) + '</div>';
+    });
+    el.className = 'hint';
+    el.innerHTML = html;
+  }
+
+  function presetState() {
+    return {
+      hasSeparation: !!state.iccBytes,
+      hasOutputIntent: !!outputIntentBytes(),
+      separationName: state.iccProfile && state.iccProfile.description,
+      outputIntentName: outputIntentName(),
+      dpi: dpi(),
+      format: $('format').value
+    };
+  }
+
+  // ----------------------------------------------------------------- formato
+
+  function isPdf() { return $('format').value === 'pdfx'; }
+
+  function updateFormatHint() {
+    var pdf = isPdf();
+    $('compression').disabled = pdf;
+    $('embedIcc').disabled = pdf;
+    if (pdf) $('embedIcc').checked = true;
+    $('go').textContent = pdf ? 'Fechar arquivo em PDF/X-1a' : 'Converter e baixar TIFF';
+  }
+  $('format').addEventListener('change', function () { updateFormatHint(); renderPresetStatus(); });
+
+  // -------------------------------------------------------------- perfil ICC
+
+  var ORIGEM = {
+    embutido: 'embutido no plugin',
+    salvo: 'guardado nesta máquina',
+    arquivo: 'carregado agora'
+  };
+
+  /**
+   * Adota um perfil, venha ele de onde vier: embutido no plugin, guardado da
+   * sessão anterior ou escolhido agora no disco.
+   *
+   * O papel importa: 'separation' é o perfil que converte os pixels e vai
+   * embutido no TIFF; 'outputIntent' é só declarado no PDF/X, dizendo em que
+   * condição aquele arquivo deve ser impresso.
+   *
+   * @param {Uint8Array} bytes
+   * @param {string} label   nome para mostrar quando o perfil não tiver descrição
+   * @param {string} source  'embutido' | 'salvo' | 'arquivo'
+   * @param {string} role    'separation' | 'outputIntent'
+   */
+  function useProfile(bytes, label, source, role) {
+    var profile = ICC.parse(bytes.buffer);
+    if (profile.dataSpace !== 'CMYK') {
+      throw new Error('Perfil de espaço ' + profile.dataSpace + '. É preciso um perfil CMYK.');
+    }
+
+    if (role === 'outputIntent') {
+      state.oiBytes = bytes;
+      state.oiProfile = profile;
+    } else {
+      state.iccBytes = bytes;
+      state.iccProfile = profile;
+      state.profileSource = source;
+      invalidateConverter();
+      $('fallbackOpts').style.display = 'none';
+      updateSwatch();
+      renderInkGrid();
+      atualizarQr();
+    }
+
+    var hint = role === 'outputIntent' ? $('oiHint') : $('iccHint');
+    hint.innerHTML = 'Perfil: <b>' + escapeHtml(profile.description || label) +
+      '</b> · ICC v' + profile.version + ' · ' + ORIGEM[source];
+    hint.className = 'hint';
+    renderPresetStatus();
+  }
+
+  function rejectProfile(message, role) {
+    if (role === 'outputIntent') {
+      state.oiBytes = null; state.oiProfile = null;
+      $('oiHint').textContent = 'Não deu para usar esse perfil: ' + message;
+      $('oiHint').className = 'hint bad';
+    } else {
+      state.iccBytes = null; state.iccProfile = null; state.cmykToRgb = null; state.profileSource = null;
+      $('iccHint').textContent = 'Não deu para usar esse perfil: ' + message;
+      $('iccHint').className = 'hint bad';
+      $('fallbackOpts').style.display = '';
+      updateSwatch();
+    }
+    renderPresetStatus();
+  }
+
+  /** O OutputIntent cai no perfil de separação quando ninguém definiu outro. */
+  function outputIntentBytes() { return state.oiBytes || state.iccBytes; }
+  function outputIntentName() {
+    var p = state.oiProfile || state.iccProfile;
+    return p && p.description;
+  }
+
+  function wireProfileInput(inputId, role) {
+    $(inputId).addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var bytes = new Uint8Array(reader.result);
+        try {
+          useProfile(bytes, file.name, 'arquivo', role);
+        } catch (err) {
+          return rejectProfile(err.message, role);
+        }
+        // guarda para as próximas sessões; o perfil é da gráfica, não da arte
+        post({ type: 'saveProfile', role: role, base64: toBase64(bytes), name: file.name });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+  wireProfileInput('iccFile', 'separation');
+  wireProfileInput('oiFile', 'outputIntent');
+
+  function useStoredProfile(msg) {
+    var role = msg.role || 'separation';
+    if (role === 'separation' ? state.iccProfile : state.oiProfile) return;
+    try {
+      useProfile(fromBase64(msg.base64), msg.name || 'perfil salvo', 'salvo', role);
+    } catch (err) {
+      /* perfil guardado corrompido: segue sem ele */
+    }
+  }
+
+  // btoa/atob não aceitam arrays grandes de uma vez; 654 KB precisa ir em pedaços
+  function toBase64(bytes) {
+    var chunk = 0x8000, parts = [];
+    for (var i = 0; i < bytes.length; i += chunk) {
+      parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunk)));
+    }
+    return btoa(parts.join(''));
+  }
+
+  function fromBase64(b64) {
+    var bin = atob(b64);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+    });
+  }
+
+  function invalidateConverter() {
+    state.converter = null;
+    state.converterKey = '';
+    state.cmykToRgb = null;
+    state.srgbToCmyk = null;
+  }
+
+  $('gcr').addEventListener('input', function () {
+    $('gcrVal').textContent = $('gcr').value + '%';
+    invalidateConverter();
+    updateSwatch();
+  });
+  $('ink').addEventListener('input', function () {
+    $('inkVal').textContent = $('ink').value + '%';
+    invalidateConverter();
+  });
+  $('intent').addEventListener('change', function () { invalidateConverter(); updateSwatch(); });
+
+  // -------------------------------------------------------------- cor exata
+
+  /**
+   * Monta a paleta uma vez por perfil: cada tinta vira um botão já pintado com
+   * a cor que ela terá impressa.
+   */
+  function renderInkGrid() {
+    var grid = $('inkGrid');
+    grid.innerHTML = '';
+    state.inks = Presets.inks.map(function (ink) {
+      var rgb = previewRgb(ink.cmyk);
+      var btn = document.createElement('button');
+      btn.className = 'ink';
+      btn.type = 'button';
+      btn.style.background = 'rgb(' + rgb.join(',') + ')';
+      btn.title = ink.name + ' · ' + ink.cmyk.map(function (v) { return Math.round(v * 100); }).join('/') +
+        ' · ' + Presets.totalInk(ink.cmyk) + '% de tinta';
+      btn.onclick = function () { pickInk(ink.cmyk, true); };
+      grid.appendChild(btn);
+      return { ink: ink, btn: btn, rgb: rgb };
+    });
+    markActiveInk();
+  }
+
+  /** Joga uma tinta nos campos e, se pedido, aplica direto na seleção. */
+  function pickInk(cmyk, apply) {
+    $('inkC').value = Math.round(cmyk[0] * 100);
+    $('inkM').value = Math.round(cmyk[1] * 100);
+    $('inkY').value = Math.round(cmyk[2] * 100);
+    $('inkK').value = Math.round(cmyk[3] * 100);
+    updateSwatch();
+    if (apply) applyToSelection();
+  }
+
+  function markActiveInk() {
+    var atual = currentInks().map(function (v) { return Math.round(v * 100); }).join('/');
+    state.inks.forEach(function (entry) {
+      var key = entry.ink.cmyk.map(function (v) { return Math.round(v * 100); }).join('/');
+      entry.btn.className = 'ink' + (key === atual ? ' on' : '');
+    });
+  }
+
+  /**
+   * Mostra a cor do que está selecionado: a tinta marcada, se houver, ou a
+   * conversão do preenchimento atual. É o que faz clicar no objeto já trazer a
+   * cor pronta para trocar.
+   */
+  function syncColorFromSelection() {
+    var alvos = state.nodes.filter(function (n) { return n.fillable; });
+    var chip = $('currentChip'), label = $('currentLabel');
+
+    if (!alvos.length) {
+      chip.style.background = 'transparent';
+      label.textContent = state.nodes.length
+        ? 'A seleção não tem preenchimento sólido.'
+        : 'Clique num objeto da arte.';
+      $('inkTotal').textContent = '';
+      markActiveInk();
+      return;
+    }
+
+    var base = alvos[0];
+    var cmyk = base.exactCmyk;
+    var origem;
+
+    if (cmyk) {
+      origem = 'tinta marcada';
+    } else if (base.fillRgb) {
+      cmyk = separate(base.fillRgb);
+      origem = 'convertida do preenchimento';
+    }
+
+    if (cmyk) {
+      pickInk(cmyk, false);
+      var rgb = previewRgb(cmyk);
+      chip.style.background = 'rgb(' + rgb.join(',') + ')';
+      label.textContent = (alvos.length > 1 ? alvos.length + ' objetos · ' : '') +
+        escapeText(base.name) + ' · ' + origem;
+    } else {
+      chip.style.background = 'transparent';
+      label.textContent = escapeText(base.name) + ' · sem cor sólida';
+    }
+    updateInkTotal();
+    markActiveInk();
+  }
+
+  function escapeText(s) {
+    return String(s).length > 28 ? String(s).slice(0, 27) + '…' : String(s);
+  }
+
+  /** RGB 0..255 -> CMYK 0..1 pelo perfil de separação (ou pela fórmula). */
+  function separate(rgb) {
+    var r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+    if (state.iccProfile) {
+      try {
+        if (!state.srgbToCmyk) {
+          state.srgbToCmyk = ICC.makeSrgbToCmyk(state.iccProfile, parseInt($('intent').value, 10), Color);
+        }
+        return state.srgbToCmyk(r, g, b);
+      } catch (err) { /* cai na fórmula */ }
+    }
+    return Color.naiveRgbToCmyk(r, g, b, {
+      gcr: parseInt($('gcr').value, 10) / 100,
+      inkLimit: parseInt($('ink').value, 10)
+    });
+  }
+
+  function updateInkTotal() {
+    var total = Presets.totalInk(currentInks());
+    var el = $('inkTotal');
+    el.textContent = total + '% de tinta';
+    el.className = 'ink-total' + (total > PRESET.inkLimit ? ' warn' : '');
+    el.title = total > PRESET.inkLimit
+      ? 'Acima do limite de ' + PRESET.inkLimit + '% que o papel jornal segura'
+      : '';
+  }
+
+  function currentInks() {
+    return ['inkC', 'inkM', 'inkY', 'inkK'].map(function (id) {
+      var v = parseFloat($(id).value);
+      if (isNaN(v)) v = 0;
+      return Math.max(0, Math.min(100, v)) / 100;
+    });
+  }
+
+  /** CMYK -> RGB 0..255 para a simulação em tela, pelo perfil quando houver. */
+  function previewRgb(cmyk) {
+    var rgb;
+    if (state.iccProfile) {
+      if (!state.cmykToRgb) {
+        try {
+          state.cmykToRgb = ICC.makeCmykToSrgb(state.iccProfile, parseInt($('intent').value, 10), Color);
+        } catch (err) {
+          state.cmykToRgb = null;
+        }
+      }
+      if (state.cmykToRgb) rgb = state.cmykToRgb(cmyk[0], cmyk[1], cmyk[2], cmyk[3]);
+    }
+    if (!rgb) rgb = Color.naiveCmykToSrgb(cmyk[0], cmyk[1], cmyk[2], cmyk[3]);
+    return rgb.map(function (v) { return Math.round(v * 255); });
+  }
+
+  function updateSwatch() {
+    var rgb = previewRgb(currentInks());
+    $('cmykSwatch').style.background = 'rgb(' + rgb.join(',') + ')';
+  }
+
+  ['inkC', 'inkM', 'inkY', 'inkK'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      updateSwatch();
+      updateInkTotal();
+      markActiveInk();
+    });
+  });
+
+  function applyToSelection() {
+    var ids = state.nodes.filter(function (n) { return n.fillable; }).map(function (n) { return n.id; });
+    if (!ids.length) return;
+    var cmyk = currentInks();
+    post({ type: 'applyCmyk', ids: ids, cmyk: cmyk, rgb: previewRgb(cmyk) });
+  }
+
+  $('applyCmyk').addEventListener('click', applyToSelection);
+
+  $('clearCmyk').addEventListener('click', function () {
+    post({ type: 'clearCmyk', ids: state.nodes.map(function (n) { return n.id; }) });
+  });
+
+  // ------------------------------------------------------------------ QR code
+
+  // 1 unidade do Figma = 1 pt = 1/72". O tamanho é pedido em mm porque quem
+  // fecha anúncio pensa em milímetro, não em ponto.
+  var MM_POR_PT = 25.4 / 72;
+  // Abaixo disso o módulo fecha em papel jornal e o leitor erra.
+  var MODULO_MINIMO_MM = 0.6;
+
+  var qrAtual = null;
+
+  function atualizarQr() {
+    var texto = $('qrText').value.trim();
+    var preview = $('qrPreview');
+    var hint = $('qrHint');
+    qrAtual = null;
+
+    if (!texto) {
+      preview.innerHTML = '';
+      hint.className = 'hint';
+      hint.textContent = 'Digite o link.';
+      $('qrInsert').disabled = true;
+      return;
+    }
+
+    try {
+      var qr = QR.encode(texto, { level: $('qrLevel').value });
+      var ladoMm = Math.max(5, parseFloat($('qrSize').value) || 25);
+      var ladoPt = ladoMm / MM_POR_PT;
+      var moduloPt = ladoPt / (qr.size + 8);        // 4 módulos de margem de cada lado
+      var moduloMm = moduloPt * MM_POR_PT;
+
+      qrAtual = {
+        qr: qr,
+        path: QR.toPath(qr, moduloPt, 4),
+        size: ladoPt,
+        label: texto.length > 40 ? texto.slice(0, 39) + '…' : texto
+      };
+
+      preview.innerHTML = '<svg viewBox="0 0 ' + ladoPt + ' ' + ladoPt + '" width="96" height="96">' +
+        '<rect width="' + ladoPt + '" height="' + ladoPt + '" fill="#fff"/>' +
+        '<path d="' + qrAtual.path + '" fill="#000"/></svg>';
+
+      var apertado = moduloMm < MODULO_MINIMO_MM;
+      // tamanho que faria cada módulo alcançar o mínimo, arredondado para cima
+      var minimoMm = Math.ceil((qr.size + 8) * MODULO_MINIMO_MM);
+      hint.className = 'hint' + (apertado ? ' warn' : '');
+      hint.innerHTML = 'Versão ' + qr.version + ' · ' + qr.size + '×' + qr.size + ' módulos · ' +
+        'módulo de ' + moduloMm.toFixed(2) + ' mm' +
+        (apertado
+          ? '<br>Módulo de ' + moduloMm.toFixed(2) + ' mm, abaixo de ' + MODULO_MINIMO_MM +
+            ' mm: em papel jornal a tinta fecha o desenho e o leitor erra. ' +
+            'Use <b>' + minimoMm + ' mm</b> ou mais, ou encurte o link.'
+          : '<br>Entra como vetor, em preto 100%, com a margem que a norma exige.');
+      $('qrInsert').disabled = false;
+    } catch (err) {
+      preview.innerHTML = '';
+      hint.className = 'hint bad';
+      hint.textContent = err.message;
+      $('qrInsert').disabled = true;
+    }
+  }
+
+  ['qrText', 'qrLevel', 'qrSize'].forEach(function (id) {
+    $(id).addEventListener('input', atualizarQr);
+    $(id).addEventListener('change', atualizarQr);
+  });
+
+  $('qrInsert').addEventListener('click', function () {
+    if (!qrAtual) return;
+    post({
+      type: 'insertQr',
+      path: qrAtual.path,
+      size: qrAtual.size,
+      label: qrAtual.label,
+      inkRgb: previewRgb([0, 0, 0, 1]),             // preto 100%, como sai impresso
+      paperRgb: previewRgb([0, 0, 0, 0])            // papel, sem tinta
+    });
+  });
+
+  // --------------------------------------------------------------- conversão
+
+  /**
+   * Devolve o conversor de faixa de pixels em uso.
+   * Com perfil ICC vale a pena amostrar uma LUT 3D (a tabela B2A é cara demais
+   * para rodar por pixel); sem perfil a fórmula é barata e roda exata.
+   */
+  function currentConverter() {
+    var key = state.iccProfile
+      ? 'icc:' + (state.iccProfile.description || '') + ':' + $('intent').value
+      : 'naive:' + $('gcr').value + ':' + $('ink').value;
+    if (state.converter && state.converterKey === key) return state.converter;
+
+    if (state.iccProfile) {
+      var fn = ICC.makeSrgbToCmyk(state.iccProfile, parseInt($('intent').value, 10), Color);
+      // Grade 65: em intenção colorimétrica relativa o recorte de gamut cria
+      // quinas que a grade 33 não acompanha (erro máximo caía de 2% para 6%).
+      // Custa ~50 ms e 4 MB, uma vez por perfil.
+      var lut = Color.buildRgbToCmykLut(fn, 65);
+      state.converter = function (rgba, bg) { return Color.rgbaToCmykWithLut(rgba, lut, bg); };
+    } else {
+      var opt = { gcr: parseInt($('gcr').value, 10) / 100, inkLimit: parseInt($('ink').value, 10) };
+      var naive = function (r, g, b) { return Color.naiveRgbToCmyk(r, g, b, opt); };
+      state.converter = function (rgba, bg) { return Color.rgbaToCmykDirect(rgba, naive, bg); };
+    }
+    state.converterKey = key;
+    return state.converter;
+  }
+
+  $('go').addEventListener('click', function () {
+    var list = chosen();
+    if (!list.length || state.busy) return;
+    if (state.limitError) return fail(state.limitError);
+    if (isPdf() && !outputIntentBytes()) {
+      return fail('PDF/X-1a exige um perfil ICC de destino: carregue o .icc do OutputIntent.');
+    }
+    var presetCheck = Presets.validate(PRESET, presetState());
+    if (!presetCheck.ok) return fail(presetCheck.problems.join(' '));
+
+    state.busy = true;
+    syncButtons();
+    setProgress(0);
+    setStatus('Preparando tabela de conversão…');
+
+    // dá um frame ao browser para pintar o status antes do trabalho pesado
+    setTimeout(function () {
+      try {
+        currentConverter();
+      } catch (err) { return fail(err.message); }
+
+      post({
+        type: 'export',
+        ids: list.map(function (n) { return n.id; }),
+        dpi: dpi(),
+        sizeMode: $('sizeMode').value,
+        customWidth: parseInt($('customWidth').value, 10) || null
+      });
+    }, 30);
+  });
+
+  var queue = Promise.resolve();
+
+  function handleImage(msg) {
+    queue = queue.then(function () { return convertAndDownload(msg); }).catch(function (err) {
+      fail(err && err.message || String(err));
+    });
+  }
+
+  function convertAndDownload(msg) {
+    setStatus('Decodificando "' + msg.name + '"…');
+    var blob = new Blob([msg.bytes], { type: 'image/png' });
+
+    return createImageBitmap(blob).then(function (bitmap) {
+      var w = bitmap.width, h = bitmap.height;
+      if (!w || !h) throw new Error('O PNG exportado veio vazio.');
+
+      var problem = limitProblem(w, h);
+      if (problem) { bitmap.close && bitmap.close(); throw new Error(problem); }
+      if (msg.targetWidth && w !== msg.targetWidth) {
+        setStatus('Aviso: o Figma devolveu ' + w + ' px em vez de ' + msg.targetWidth + ' px.');
+      }
+
+      // O canvas cobre só uma faixa por vez: em imagens grandes um canvas de
+      // altura total estoura o limite do browser e volta em branco.
+      var bandRows = Math.max(1, Math.min(h, Math.floor(2 * 1024 * 1024 / (w * 4)) || 1));
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = bandRows;
+      var ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) throw new Error('Canvas indisponível para ' + w + '×' + bandRows + '.');
+      if (canvas.width !== w || canvas.height !== bandRows) {
+        throw new Error('O browser recusou um canvas de ' + w + '×' + bandRows + ' px.');
+      }
+
+      var convert = currentConverter();
+      var bgHex = $('bg').value;
+      var bg = [parseInt(bgHex.slice(0, 2), 16) / 255,
+                parseInt(bgHex.slice(2, 4), 16) / 255,
+                parseInt(bgHex.slice(4, 6), 16) / 255];
+
+      var overrides = msg.overrides || [];
+      var cmyk = new Uint8Array(w * h * 4);
+      var drawn = 0, exactPixels = 0;
+
+      return eachBand(h, bandRows, function (y0, rows, done) {
+        ctx.clearRect(0, 0, w, bandRows);
+        ctx.drawImage(bitmap, 0, y0, w, rows, 0, 0, w, rows);
+        var img = ctx.getImageData(0, 0, w, rows);
+        drawn += countOpaque(img.data);
+        var part = convert(img.data, bg);
+        exactPixels += Color.applyExactOverrides(img.data, part, overrides);
+        cmyk.set(part, y0 * w * 4);
+        setProgress(done / h * 0.9);
+        setStatus('Convertendo "' + msg.name + '" · ' + Math.round(done / h * 100) + '%');
+      }).then(function () {
+        bitmap.close && bitmap.close();
+        canvas.width = canvas.height = 1;           // libera a memória do canvas
+
+        // Um canvas recusado pelo browser volta 100% transparente. Antes isso
+        // virava um TIFF branco sem aviso nenhum.
+        if (drawn === 0) {
+          throw new Error('A imagem chegou totalmente transparente do canvas — ' +
+            'provavelmente ' + w + '×' + h + ' px é grande demais para este browser.');
+        }
+
+        var note = overrides.length
+          ? ' · ' + overrides.length + ' cor(es) exata(s) em ' +
+            Math.round(exactPixels / (w * h) * 100) + '% da área'
+          : '';
+
+        return isPdf()
+          ? writePdf(msg, w, h, cmyk, note)
+          : writeTiff(msg, w, h, cmyk, note);
+      });
+    });
+  }
+
+  function writeTiff(msg, w, h, cmyk, note) {
+    var compression = $('compression').value;
+    var base = {
+      width: w, height: h,
+      dpi: msg.dpi,
+      icc: ($('embedIcc').checked && state.iccBytes) ? state.iccBytes : null,
+      compression: compression,
+      software: 'editoraglobo-cmyk-qr (Figma)'
+    };
+
+    setStatus('Comprimindo e gravando TIFF…');
+    setProgress(0.92);
+
+    // Deflate roda em CompressionStream (assíncrono), então as strips são
+    // preparadas antes de montar o arquivo.
+    var prepared = compression === 'deflate'
+      ? Tiff.deflateStrips(cmyk, w, h, function (p) { setProgress(0.92 + p * 0.06); })
+          .then(function (r) { base.strips = r.strips; base.rowsPerStrip = r.rowsPerStrip; return base; })
+          .catch(function (err) {
+            base.compression = 'none';
+            base.cmyk = cmyk;
+            setStatus('Deflate indisponível (' + err.message + '); gravando sem compressão.');
+            return base;
+          })
+      : Promise.resolve((base.cmyk = cmyk, base));
+
+    return prepared.then(function (opts) {
+      var tiff = Tiff.writeCmykTiff(opts);
+      download(tiff, 'image/tiff', safeName(msg.name) + '_' + msg.dpi + 'dpi_CMYK.tif');
+      done(msg, w, h, tiff.length, note);
+    });
+  }
+
+  function writePdf(msg, w, h, cmyk, note) {
+    setStatus('Comprimindo imagem para o PDF…');
+    setProgress(0.92);
+
+    // O PDF quer a imagem num fluxo só, não em strips.
+    var oiBytes = outputIntentBytes();
+    return Tiff.deflate(cmyk).then(function (imageData) {
+      setProgress(0.96);
+      setStatus('Embutindo o perfil no OutputIntent…');
+      return Tiff.deflate(oiBytes).then(function (iccZ) {
+        var pdf = PdfX.writePdfX1a({
+          width: w, height: h, dpi: msg.dpi,
+          imageData: imageData,
+          icc: oiBytes,
+          iccCompressed: iccZ,
+          title: msg.name,
+          outputCondition: outputIntentName() || 'CMYK'
+        });
+        download(pdf, 'application/pdf', safeName(msg.name) + '_' + msg.dpi + 'dpi_PDFX1a.pdf');
+        var sep = state.iccProfile && state.iccProfile.description;
+        var oi = outputIntentName();
+        done(msg, w, h, pdf.length, note +
+          (sep && oi && sep !== oi ? ' · separado em ' + sep + ', declarado como ' + oi : ''));
+      });
+    });
+  }
+
+  function done(msg, w, h, bytes, note) {
+    setProgress(1);
+    setStatus('"' + msg.name + '" pronto: ' + w + '×' + h + ' px, ' +
+      (bytes / 1048576).toFixed(1) + ' MB' + note + '.');
+  }
+
+  /** Conta pixels com alfa > 0 — serve para detectar um canvas que voltou vazio. */
+  function countOpaque(rgba) {
+    var n = 0;
+    for (var i = 3; i < rgba.length; i += 4) if (rgba[i] !== 0) n++;
+    return n;
+  }
+
+  function eachBand(height, band, work) {
+    var y = 0;
+    return new Promise(function (resolve, reject) {
+      (function step() {
+        if (y >= height) return resolve();
+        var rows = Math.min(band, height - y);
+        try {
+          work(y, rows, y + rows);
+        } catch (err) { return reject(err); }
+        y += rows;
+        setTimeout(step, 0);                        // devolve o controle ao event loop
+      })();
+    });
+  }
+
+  function download(bytes, mime, filename) {
+    var blob = new Blob([bytes], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  }
+
+  function safeName(name) {
+    return String(name).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 80) || 'export';
+  }
+
+  // ------------------------------------------------------------------ estado
+
+  function setStatus(text, isError) {
+    var el = $('status');
+    el.textContent = text;
+    el.className = isError ? 'error' : '';
+  }
+  function setProgress(p) { $('progress').style.width = Math.round(p * 100) + '%'; }
+
+  function finish() {
+    queue = queue.then(function () {
+      state.busy = false;
+      syncButtons();
+      if ($('status').className !== 'error') notify('Arquivo CMYK gerado.');
+    });
+  }
+
+  function fail(message) {
+    state.busy = false;
+    syncButtons();
+    setProgress(0);
+    setStatus(message, true);
+    notify(message, true);
+  }
+
+  $('gcrVal').textContent = $('gcr').value + '%';
+  $('inkVal').textContent = $('ink').value + '%';
+  updateFormatHint();
+
+  applyPreset();                                    // adota os perfis e fixa o padrão da casa
+  renderInkGrid();
+  atualizarQr();
+  updateSwatch();
+  updateInkTotal();
+})();
+</script>

@@ -1,0 +1,10 @@
+# Saídas dos testes, regeradas a cada rodada
+test/samples.json
+test/out-*.tif
+test/out-*.pdf
+__pycache__/
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store

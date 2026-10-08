@@ -1,0 +1,209 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Harness — editoraglobo-cmyk-qr</title>
+<!-- Simula o lado do Figma (code.js) para exercitar ui.html num browser comum.
+     Sirva a pasta do projeto e abra /test/harness.html.
+     Os arquivos gerados são interceptados e inspecionados aqui em vez de baixados. -->
+<style>
+  body { font: 12px/1.5 -apple-system, "Segoe UI", sans-serif; margin: 0; display: flex; }
+  iframe { width: 460px; height: 760px; border: 0; border-right: 1px solid #ddd; }
+  #log { padding: 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; }
+  .ok { color: #067647; } .bad { color: #b42318; }
+</style>
+<iframe id="ui" src="../ui.html"></iframe>
+<div id="log">aguardando…</div>
+
+<script>
+const log = (msg, cls) => {
+  const el = document.createElement('div');
+  if (cls) el.className = cls;
+  el.textContent = msg;
+  document.getElementById('log').appendChild(el);
+};
+document.getElementById('log').textContent = '';
+
+// mesmas dimensoes do caso real que gerou o TIFF em branco
+const FAKE_NODES = [
+  { id: '1:1', name: 'MEIA PAGINA TOP 11', type: 'FRAME', width: 5000, height: 4376,
+    exportable: true, fillable: true, fillRgb: [255, 122, 0], exactCmyk: null },
+  { id: '1:2', name: 'Tarja do preco', type: 'RECTANGLE', width: 800, height: 200,
+    exportable: true, fillable: true, fillRgb: [0, 58, 140], exactCmyk: null }
+];
+
+// so o primeiro no fica selecionado por padrao no harness
+let SELECIONADOS = ['1:1'];
+
+// pluginData simulado: id -> { cmyk, rgb }
+const EXACT = {};
+// cor chapada que o "Figma" desenha na faixa de baixo da arte
+let PATCH_RGB = null;
+
+const frame = document.getElementById('ui');
+window.lastFile = null;
+
+frame.addEventListener('load', () => {
+  const w = frame.contentWindow;
+  const realCreate = w.URL.createObjectURL.bind(w.URL);
+  w.URL.createObjectURL = (blob) => {
+    if (blob.type === 'image/tiff') inspectTiff(blob);
+    else if (blob.type === 'application/pdf') inspectPdf(blob);
+    return realCreate(blob);
+  };
+  const realClick = w.HTMLAnchorElement.prototype.click;
+  w.HTMLAnchorElement.prototype.click = function () {
+    if (this.download) { log('download interceptado: ' + this.download); return; }
+    return realClick.call(this);
+  };
+});
+
+window.addEventListener('message', (e) => {
+  const msg = e.data && e.data.pluginMessage;
+  if (!msg) return;
+
+  if (msg.type === 'ready') {
+    log('UI pronta -> enviando seleção falsa');
+    sendSelection();
+  } else if (msg.type === 'export') {
+    handleExport(msg);
+  } else if (msg.type === 'applyCmyk') {
+    msg.ids.forEach(id => { EXACT[id] = { cmyk: msg.cmyk, rgb: msg.rgb }; });
+    PATCH_RGB = msg.rgb;
+    log('applyCmyk: ' + msg.cmyk.map(v => Math.round(v * 100)).join('/') +
+        ' -> rgb(' + msg.rgb.join(',') + ')', 'ok');
+    sendSelection();
+  } else if (msg.type === 'clearCmyk') {
+    msg.ids.forEach(id => delete EXACT[id]);
+    PATCH_RGB = null;
+    log('clearCmyk');
+    sendSelection();
+  } else if (msg.type === 'insertQr') {
+    // guarda o que o plugin mandaria para o Figma, para conferir aqui
+    window.ultimoQr = msg;
+    log('insertQr: ' + msg.label + ' | lado ' + msg.size.toFixed(1) + 'pt | tinta rgb(' +
+        msg.inkRgb + ') | papel rgb(' + msg.paperRgb + ')', 'ok');
+  } else if (msg.type === 'notify') {
+    log('notify: ' + msg.message, msg.error ? 'bad' : 'ok');
+  }
+});
+
+function send(payload) { frame.contentWindow.postMessage({ pluginMessage: payload }, '*'); }
+
+// equivale a clicar noutro objeto no canvas do Figma
+window.selecionar = (...ids) => { SELECIONADOS = ids; sendSelection(); };
+
+function sendSelection() {
+  const nodes = FAKE_NODES.filter(n => SELECIONADOS.includes(n.id))
+    .map(n => ({ ...n,
+      fillRgb: EXACT[n.id] ? EXACT[n.id].rgb : n.fillRgb,
+      exactCmyk: EXACT[n.id] ? EXACT[n.id].cmyk : null }));
+  send({ type: 'selection', nodes, figmaDpi: 72 });
+  // miniaturas chegam depois, como no code.js
+  nodes.forEach(async n => {
+    const bytes = await renderPng(120, Math.round(120 * n.height / n.width));
+    send({ type: 'thumb', id: n.id, bytes });
+  });
+}
+
+async function handleExport(msg) {
+  for (const id of msg.ids) {
+    const node = FAKE_NODES.find(n => n.id === id);
+    // mesma regra do code.js
+    const width = msg.sizeMode === 'width' ? Math.round(msg.customWidth || node.width)
+                : msg.sizeMode === 'native' ? Math.round(node.width)
+                : Math.round(node.width * msg.dpi / 72);
+    const height = Math.round(width * node.height / node.width);
+    log('export ' + node.name + ' -> ' + width + '×' + height);
+
+    const bytes = await renderPng(width, height);
+    send({ type: 'image', id, name: node.name, bytes,
+           targetWidth: width, targetHeight: height, dpi: msg.dpi,
+           overrides: EXACT[id] ? [EXACT[id]] : [] });
+  }
+  send({ type: 'export-done' });
+}
+
+// alvo colorido conhecido: faixas puras + gradiente + area transparente,
+// mais uma faixa chapada com a cor exata aplicada (quando houver)
+function renderPng(w, h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const bands = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
+  const bw = w / bands.length;
+  bands.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(i * bw, 0, Math.ceil(bw), h / 2); });
+  const grad = ctx.createLinearGradient(0, 0, w, 0);
+  grad.addColorStop(0, '#003a8c'); grad.addColorStop(1, '#ff7a00');
+  ctx.fillStyle = grad; ctx.fillRect(0, h / 2, w, h / 4);
+  if (PATCH_RGB) {
+    ctx.fillStyle = 'rgb(' + PATCH_RGB.join(',') + ')';
+    ctx.fillRect(0, Math.floor(h * 0.75), w, Math.ceil(h * 0.25));
+  }
+  return new Promise(res => canvas.toBlob(b => b.arrayBuffer().then(ab => res(new Uint8Array(ab))), 'image/png'));
+}
+
+const ok = (label, cond) => log((cond ? 'ok   ' : 'FALHA ') + label, cond ? 'ok' : 'bad');
+
+function readTiffTags(buf) {
+  const v = new DataView(buf.buffer);
+  const ifd = v.getUint32(4, true);
+  const n = v.getUint16(ifd, true);
+  const SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1 };
+  const tags = {};
+  for (let i = 0; i < n; i++) {
+    const p = ifd + 2 + i * 12;
+    const tag = v.getUint16(p, true), type = v.getUint16(p + 2, true), count = v.getUint32(p + 4, true);
+    const off = SIZE[type] * count <= 4 ? p + 8 : v.getUint32(p + 8, true);
+    tags[tag] = { type, count, off,
+      first: type === 3 ? v.getUint16(off, true)
+           : type === 5 ? v.getUint32(off, true) / v.getUint32(off + 4, true)
+           : v.getUint32(off, true) };
+  }
+  return tags;
+}
+
+async function inspectTiff(blob) {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  window.lastFile = buf;
+  const v = new DataView(buf.buffer);
+  const tags = readTiffTags(buf);
+  log('--- TIFF de ' + (buf.length / 1048576).toFixed(2) + ' MB ---');
+  ok('little-endian + magic 42', buf[0] === 0x49 && buf[1] === 0x49 && v.getUint16(2, true) === 42);
+  ok('photometric 5 (CMYK)', tags[262].first === 5);
+  ok('4 canais', tags[277].first === 4);
+  ok('XResolution = 300', tags[282].first === 300);
+  ok('ResolutionUnit = polegada', tags[296].first === 2);
+  log('dimensões: ' + tags[256].first + '×' + tags[257].first);
+  log('ICC embutido: ' + (tags[34675] ? tags[34675].count + ' bytes' : 'nenhum'));
+
+  if (tags[259].first === 1) {                       // sem compressão: dá para ler direto
+    const stripOff = tags[273].first, width = tags[256].first, height = tags[257].first;
+    const px = (x, y) => Array.from(buf.subarray(stripOff + (y * width + x) * 4,
+                                                 stripOff + (y * width + x) * 4 + 4));
+    log('pixel branco CMYK: ' + px(4, 4).join(','));
+    log('pixel preto  CMYK: ' + px(Math.floor(width / 8) + 4, 4).join(','));
+    ok('branco quase sem tinta', px(4, 4).every(x => x < 15));
+    if (PATCH_RGB) {
+      const exact = Object.values(EXACT)[0];
+      const got = px(Math.floor(width / 2), Math.floor(height * 0.9));
+      const want = exact.cmyk.map(v => Math.round(v * 255));
+      log('faixa de cor exata: ' + got.join(',') + ' (esperado ' + want.join(',') + ')');
+      ok('tinta exata preservada', got.every((v, i) => Math.abs(v - want[i]) <= 1));
+    }
+  }
+}
+
+async function inspectPdf(blob) {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  window.lastFile = buf;
+  const all = new TextDecoder('latin1').decode(buf);
+  const tail = all.slice(-2048);
+  log('--- PDF de ' + (buf.length / 1048576).toFixed(2) + ' MB ---');
+  ok('cabeçalho PDF 1.3', all.startsWith('%PDF-1.3'));
+  ok('OutputIntent GTS_PDFX', /\/S \/GTS_PDFX/.test(all));
+  ok('imagem DeviceCMYK', /\/ColorSpace \/DeviceCMYK/.test(all));
+  ok('TrimBox e BleedBox', /\/TrimBox/.test(all) && /\/BleedBox/.test(all));
+  ok('trailer com ID e EOF', /\/ID \[</.test(tail) && /%%EOF/.test(tail));
+  const mb = all.match(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/);
+  if (mb) log('página: ' + (+mb[1] / 72 * 25.4).toFixed(1) + '×' + (+mb[2] / 72 * 25.4).toFixed(1) + ' mm');
+}
+</script>

@@ -1,0 +1,13 @@
+{
+  "name": "editoraglobo-cmyk-qr",
+  "id": "editoraglobo-cmyk-qr",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "reasoning": "A conversão de cor e a gravação do TIFF/PDF acontecem localmente; o plugin não envia nada para fora."
+  }
+}

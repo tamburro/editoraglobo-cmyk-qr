@@ -1,0 +1,10 @@
+{
+  "name": "editoraglobo-cmyk-qr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plugin do Figma da Editora Globo: fecha arquivos em CMYK 300 DPI (TIFF e PDF/X-1a), com cor exata por objeto e gerador de QR code vetorial",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/test.js"
+  }
+}
